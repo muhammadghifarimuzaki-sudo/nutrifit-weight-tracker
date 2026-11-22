@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriFit - Dashboard Progres Berat Badan</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Inter untuk keterbacaan angka yang tajam -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-5 md:p-10">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between mb-8 pb-6 border-b border-slate-800/80">
+            <div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-white">NutriFit Weight Tracker</h1>
+                    <span id="totalEntriesBadge" class="text-xs bg-blue-500/15 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full font-semibold">0 Hari</span>
+                </div>
+                <p class="text-slate-400 text-sm mt-1.5">Data langsung dari Firestore • ID: <span id="displayUserId" class="font-mono text-slate-300 bg-slate-900 px-2 py-0.5 rounded">user_demo_123</span></p>
+            </div>
+        </header>
+
+        <!-- Status Loading -->
+        <div id="loadingIndicator" class="text-center py-20 text-slate-400 text-base">
+            Memuat data berat badan dari Firestore...
+        </div>
+
+        <!-- Konten Utama -->
+        <main id="dashboardContent" class="hidden space-y-8">
+            
+            <!-- 5 KARTU RINGKASAN UTAMA (MUDAH DIBACA) -->
+            <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                <!-- BB Awal -->
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                    <span class="text-xs font-medium uppercase tracking-wider text-slate-400 block">BB Awal</span>
+                    <span id="statStartWeight" class="text-2xl md:text-3xl font-bold text-white mt-1 block">- kg</span>
+                    <span id="statStartDate" class="text-xs text-slate-500 mt-1 block">-</span>
+                </div>
+
+                <!-- BB Tertinggi (BARU) -->
+                <div class="bg-slate-900 border border-rose-500/20 p-5 rounded-2xl">
+                    <span class="text-xs font-medium uppercase tracking-wider text-rose-400 block">BB Tertinggi</span>
+                    <span id="statMaxWeight" class="text-2xl md:text-3xl font-bold text-rose-400 mt-1 block">- kg</span>
+                    <span id="statMaxDate" class="text-xs text-slate-500 mt-1 block">-</span>
+                </div>
+
+                <!-- BB Terendah -->
+                <div class="bg-slate-900 border border-cyan-500/20 p-5 rounded-2xl">
+                    <span class="text-xs font-medium uppercase tracking-wider text-cyan-400 block">BB Terendah</span>
+                    <span id="statMinWeight" class="text-2xl md:text-3xl font-bold text-cyan-400 mt-1 block">- kg</span>
+                    <span id="statMinDate" class="text-xs text-slate-500 mt-1 block">-</span>
+                </div>
+
+                <!-- BB Terkini -->
+                <div class="bg-slate-900 border border-emerald-500/20 p-5 rounded-2xl">
+                    <span class="text-xs font-medium uppercase tracking-wider text-emerald-400 block">BB Terkini</span>
+                    <span id="statCurrentWeight" class="text-2xl md:text-3xl font-bold text-emerald-400 mt-1 block">- kg</span>
+                    <span id="statCurrentDate" class="text-xs text-slate-500 mt-1 block">-</span>
+                </div>
+
+                <!-- Total Perubahan -->
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl col-span-2 sm:col-span-1">
+                    <span class="text-xs font-medium uppercase tracking-wider text-slate-400 block">Selisih Total</span>
+                    <span id="statDiffWeight" class="text-2xl md:text-3xl font-bold text-blue-400 mt-1 block">- kg</span>
+                    <span class="text-xs text-slate-500 mt-1 block">Dari BB awal</span>
+                </div>
+            </section>
+
+            <!-- GRAFIK PALING ATAS & PANJANG: PROGRES SELURUHNYA -->
+            <section class="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-lg">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
+                    <div>
+                        <h2 class="text-lg md:text-xl font-bold text-white">Tren Progres Keseluruhan</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Arahkan kursor ke titik grafik untuk melihat detail tanggal dan berat badan</p>
+                    </div>
+                </div>
+                <div class="relative h-80 md:h-96 w-full">
+                    <canvas id="overallChart"></canvas>
+                </div>
+            </section>
+
+            <!-- BAGIAN BAWAH: KARTU RINCIAN PER BULAN -->
+            <section>
+                <div class="mb-4">
+                    <h2 class="text-lg md:text-xl font-bold text-white">Rincian Progres Per Bulan</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Perbandingan awal, puncak tertinggi, dan akhir berat badan setiap bulan</p>
+                </div>
+                <div id="monthlyChartsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Kartu bulan di-generate otomatis -->
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Firebase SDK (Modular v10) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // Konfigurasi Firebase NutriFit-app
+        const firebaseConfig = {
+            apiKey: "AIzaSyCxRb-X-aaNxFCqhHo1Iqj35sKoht57SQA",
+            authDomain: "nutrifit-app-a2449.firebaseapp.com",
+            projectId: "nutrifit-app-a2449",
+            storageBucket: "nutrifit-app-a2449.firebasestorage.app",
+            messagingSenderId: "95397537234",
+            appId: "1:95397537234:web:d49a1fcc485ce540b5940b"
+        };
+
+        const TARGET_USER_ID = "user_demo_123";
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const namaBulan = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+        ];
+
+        const namaBulanSingkat = [
+            "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+            "Jul", "Agu", "Sep", "Okt", "Nov", "Des"
+        ];
+
+        // Format "2026-10-15" menjadi "15 Okt 2026" agar mudah dibaca manusia
+        function formatTanggalIndo(dateStr) {
+            const [y, m, d] = dateStr.split("-");
+            return `${parseInt(d, 10)} ${namaBulanSingkat[parseInt(m, 10) - 1]} ${y}`;
+        }
+
+        async function loadWeightData() {
+            try {
+                const q = query(
+                    collection(db, "weight_logs"),
+                    where("userId", "==", TARGET_USER_ID)
+                );
+
+                const querySnapshot = await getDocs(q);
+                let logs = [];
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.date && data.weight !== undefined) {
+                        logs.push({
+                            date: data.date,
+                            weight: parseFloat(data.weight)
+                        });
+                    }
+                });
+
+                logs.sort((a, b) => a.date.localeCompare(b.date));
+
+                if (logs.length === 0) {
+                    document.getElementById("loadingIndicator").innerText = "Belum ada data berat badan ditemukan di Firestore.";
+                    return;
+                }
+
+                renderDashboard(logs);
+
+            } catch (error) {
+                console.error("Error mengambil data:", error);
+                document.getElementById("loadingIndicator").innerHTML = 
+                    `<span class="text-rose-400">Gagal memuat data: ${error.message}</span>`;
+            }
+        }
+
+        function renderDashboard(logs) {
+            document.getElementById("loadingIndicator").classList.add("hidden");
+            document.getElementById("dashboardContent").classList.remove("hidden");
+
+            // Hitung BB Awal, Terkini, Tertinggi, dan Terendah
+            const startLog = logs[0];
+            const currentLog = logs[logs.length - 1];
+            
+            let maxLog = logs[0];
+            let minLog = logs[0];
+            logs.forEach(item => {
+                if (item.weight > maxLog.weight) maxLog = item;
+                if (item.weight < minLog.weight) minLog = item;
+            });
+
+            const diff = (currentLog.weight - startLog.weight).toFixed(1);
+            const diffSign = diff > 0 ? `+${diff}` : diff;
+
+            // Tampilkan ke 5 Kartu Atas
+            document.getElementById("statStartWeight").innerText = `${startLog.weight} kg`;
+            document.getElementById("statStartDate").innerText = formatTanggalIndo(startLog.date);
+
+            document.getElementById("statMaxWeight").innerText = `${maxLog.weight} kg`;
+            document.getElementById("statMaxDate").innerText = formatTanggalIndo(maxLog.date);
+
+            document.getElementById("statMinWeight").innerText = `${minLog.weight} kg`;
+            document.getElementById("statMinDate").innerText = formatTanggalIndo(minLog.date);
+
+            document.getElementById("statCurrentWeight").innerText = `${currentLog.weight} kg`;
+            document.getElementById("statCurrentDate").innerText = formatTanggalIndo(currentLog.date);
+            
+            const diffEl = document.getElementById("statDiffWeight");
+            diffEl.innerText = `${diffSign} kg`;
+            diffEl.className = diff <= 0 
+                ? "text-2xl md:text-3xl font-bold text-emerald-400 mt-1 block" 
+                : "text-2xl md:text-3xl font-bold text-amber-400 mt-1 block";
+            
+            document.getElementById("totalEntriesBadge").innerText = `${logs.length} Hari Tercatat`;
+
+            // Render Grafik Keseluruhan
+            const overallCtx = document.getElementById("overallChart").getContext("2d");
+            new Chart(overallCtx, {
+                type: 'line',
+                data: {
+                    labels: logs.map(item => formatTanggalIndo(item.date)),
+                    datasets: [{
+                        label: 'Berat Badan',
+                        data: logs.map(item => item.weight),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                        borderWidth: 3,
+                        // Tandai titik tertinggi dengan warna merah muda agar langsung terlihat di grafik
+                        pointBackgroundColor: logs.map(item => item.weight === maxLog.weight ? '#fb7185' : '#60a5fa'),
+                        pointBorderColor: logs.map(item => item.weight === maxLog.weight ? '#ffe4e6' : '#1e3a8a'),
+                        pointRadius: logs.map(item => item.weight === maxLog.weight ? 6 : 4),
+                        pointHoverRadius: 7,
+                        fill: true,
+                        tension: 0.25
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            titleColor: '#94a3b8',
+                            bodyColor: '#f8fafc',
+                            bodyFont: { size: 14, weight: 'bold' },
+                            padding: 12,
+                            borderColor: '#334155',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: (context) => ` ${context.parsed.y} kg`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            grid: { color: '#1e293b' }, 
+                            ticks: { color: '#94a3b8', maxRotation: 45, minRotation: 0, font: { size: 11 } } 
+                        },
+                        y: { 
+                            grid: { color: '#1e293b' }, 
+                            ticks: { 
+                                color: '#cbd5e1', 
+                                font: { size: 12 },
+                                callback: (value) => value + ' kg'
+                            } 
+                        }
+                    }
+                }
+            });
+
+            // Kelompokkan Data Per Bulan
+            const groupedByMonth = {};
+            logs.forEach(item => {
+                const yearMonth = item.date.substring(0, 7);
+                if (!groupedByMonth[yearMonth]) {
+                    groupedByMonth[yearMonth] = [];
+                }
+                groupedByMonth[yearMonth].push(item);
+            });
+
+            // Render Kartu-Kartu Bulan
+            const gridContainer = document.getElementById("monthlyChartsGrid");
+            Object.keys(groupedByMonth).forEach((yearMonth, index) => {
+                const monthLogs = groupedByMonth[yearMonth];
+                const [year, monthStr] = yearMonth.split("-");
+                const monthName = `${namaBulan[parseInt(monthStr, 10) - 1]} ${year}`;
+
+                const mStart = monthLogs[0].weight;
+                const mEnd = monthLogs[monthLogs.length - 1].weight;
+                const mMax = Math.max(...monthLogs.map(i => i.weight));
+                const mDiff = (mEnd - mStart).toFixed(1);
+                const mDiffText = mDiff > 0 ? `+${mDiff} kg` : `${mDiff} kg`;
+                const badgeColor = mDiff <= 0 ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" : "bg-amber-500/15 text-amber-400 border border-amber-500/30";
+
+                const card = document.createElement("div");
+                card.className = "bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md flex flex-col justify-between";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-base font-bold text-white">${monthName}</h3>
+                            <span class="text-xs px-2.5 py-1 rounded-full font-semibold ${badgeColor}">${mDiffText}</span>
+                        </div>
+                        
+                        <!-- 3 Kolom Mini: Awal, Tertinggi, Akhir -->
+                        <div class="grid grid-cols-3 gap-2 bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 mb-5 text-center">
+                            <div>
+                                <span class="text-[11px] text-slate-400 block">Awal</span>
+                                <strong class="text-sm font-bold text-slate-200">${mStart} kg</strong>
+                            </div>
+                            <div class="border-x border-slate-800">
+                                <span class="text-[11px] text-rose-400 block">Tertinggi</span>
+                                <strong class="text-sm font-bold text-rose-400">${mMax} kg</strong>
+                            </div>
+                            <div>
+                                <span class="text-[11px] text-emerald-400 block">Akhir</span>
+                                <strong class="text-sm font-bold text-emerald-400">${mEnd} kg</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="relative h-48 w-full">
+                        <canvas id="monthChart_${index}"></canvas>
+                    </div>
+                `;
+                gridContainer.appendChild(card);
+
+                const ctx = document.getElementById(`monthChart_${index}`).getContext("2d");
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: monthLogs.map(item => `Tgl ${parseInt(item.date.substring(8, 10), 10)}`),
+                        datasets: [{
+                            label: 'BB',
+                            data: monthLogs.map(item => item.weight),
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2.5,
+                            pointBackgroundColor: monthLogs.map(item => item.weight === mMax ? '#fb7185' : '#34d399'),
+                            pointRadius: monthLogs.map(item => item.weight === mMax ? 5 : 3),
+                            fill: true,
+                            tension: 0.25
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: '#0f172a',
+                                padding: 10,
+                                callbacks: { label: (context) => ` ${context.parsed.y} kg` }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+                            y: { 
+                                grid: { color: '#1e293b' }, 
+                                ticks: { 
+                                    color: '#94a3b8', 
+                                    font: { size: 11 },
+                                    callback: (value) => value + ' kg'
+                                } 
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        loadWeightData();
+    </script>
+</body>
+</html>
